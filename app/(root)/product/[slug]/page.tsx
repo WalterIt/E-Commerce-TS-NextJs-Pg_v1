@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { getProductBySlug } from '@/actions/product.actions'
 import { APP_NAME } from '@/lib/constants'
-import { Button } from '@/components/ui/button'
+import AddToCart from '@/components/shared/product/add-to-cart'
+import { getMyCart } from '@/actions/cart.actions'
+import { round2 } from '@/lib/utils'
 
 export async function generateMetadata({
   params,
@@ -36,6 +38,8 @@ const ProductDetails = async (
 ) => {
   const product = await getProductBySlug(slug)
   if (!product) notFound()
+
+  const cart = await getMyCart()
 
   return (
     <>
@@ -89,7 +93,17 @@ const ProductDetails = async (
                 </div>
                 {product.stock !== 0 && (
                   <div className=" flex-center">
-                    <Button className="w-full">Add to cart</Button>
+                    <AddToCart
+                      cart={cart}
+                      item={{
+                        productId: product.id,
+                        name: product.name,
+                        slug: product.slug,
+                        price: round2(product.price),
+                        qty: 1,
+                        image: product.images![0],
+                      }}
+                    />
                   </div>
                 )}
               </CardContent>
@@ -98,7 +112,7 @@ const ProductDetails = async (
         </div>
       </section>
     </>
-  )
+  );
 }
 
 export default ProductDetails
