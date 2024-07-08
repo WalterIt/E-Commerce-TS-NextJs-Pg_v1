@@ -40,3 +40,13 @@ export const signUpFormSchema = z
         'Price must have exactly two decimal places (e.g., 49.99)'
       ),
   })
+
+  export const shippingAddressSchema = z.object({
+    fullName: z.string().min(3, 'Name must be at least 3 Characters!'),
+    streetAddress: z.string().min(3, 'Address must be at least 3 Characters!'),
+    city: z.string().min(3, 'city must be at least 3 Characters!'),
+    postalCode: z.string().min(3, 'Postal code must be at least 3 Characters!'),
+    country: z.string().min(3, 'Country must be at least 3 Characters!'),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+  })

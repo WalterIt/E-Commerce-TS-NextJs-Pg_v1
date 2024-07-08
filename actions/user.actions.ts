@@ -2,12 +2,15 @@
 
 import { isRedirectError } from 'next/dist/client/components/redirect'
 
-import { signIn, signOut } from '@/auth'
-import { signInFormSchema, signUpFormSchema } from '@/lib/validator'
+import { auth, signIn, signOut } from '@/auth'
+import { shippingAddressSchema, signInFormSchema, signUpFormSchema } from '@/lib/validator'
 import { hashSync } from 'bcrypt-ts-edge'
 import db from '@/db/drizzle'
 import { users } from '@/db/schema'
 import { formatError } from '@/lib/utils'
+import { ShippingAddress } from '@/types'
+import { eq } from 'drizzle-orm'
+import { revalidatePath } from 'next/cache'
 
 
 export async function signUp(prevState: unknown, formData: FormData) {
@@ -74,4 +77,38 @@ export async function signInWithCredentials(
 
 export const SignOut = async () => {
   await signOut()
+}
+
+
+export async function getUserById(userId: string) {
+  const user = await db.query.users.findFirst({
+    where: (users, { eq }) => eq(users.id, userId),
+  })
+  if (!user) throw new Error('User not found')
+  return user
+}
+
+export async function updateUserAddress(data: ShippingAddress) {
+  try {
+    const session = await auth()
+    const currentUser = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, session?.user.id!),
+    })
+    if (!currentUser) throw new Error('User Not Found!')
+
+    const address = shippingAddressSchema.parse(data)
+    await db
+      .update(users)
+      .set({ address })
+      .where(eq(users.id, currentUser.id))
+
+    revalidatePath('/place-order')
+    
+    return {
+      success: true,
+      message: 'User Updated Successfully!',
+    }
+  } catch (error) {
+    return { success: false, message: formatError(error) }
+  }
 }

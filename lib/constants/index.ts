@@ -15,3 +15,12 @@ export const APP_DESCRIPTION =
     password: '',
     confirmPassword: '',
   }
+
+
+  export const shippingAddressDefaultValues = {
+    fullName: '',
+    streetAddress: '',
+    city: '',
+    postalCode: '',
+    country: '',
+  }
