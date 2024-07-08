@@ -1,5 +1,5 @@
-// import ProductList from '@/components/shared/product/product-list'
-// import { getLatestProducts } from '@/actions/product.actions'
+import ProductList from '@/components/shared/product/product-list'
+import { getLatestProducts } from '@/actions/product.actions'
 import { APP_DESCRIPTION, APP_NAME } from '@/lib/constants'
 import { Metadata } from 'next'
 
@@ -8,10 +8,10 @@ export const metadata: Metadata = {
 }
 
 export default async function Home() {
-  // const latestProducts = await getLatestProducts()
+  const latestProducts = await getLatestProducts()
   return (
     <div> Products
-      {/* <ProductList title="Newest Arrivals" data={latestProducts} />   */}
+      <ProductList title="Newest Arrivals" data={latestProducts} />  
     </div>
   )
 }
