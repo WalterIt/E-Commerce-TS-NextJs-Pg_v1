@@ -17,17 +17,25 @@ const main = async () => {
     await client.connect()
     const db = drizzle(client)
 
+    await db.delete(schema.accounts)
+    await db.delete(schema.users)
     await db.delete(schema.products)
 
+    const resUsers = await db
+      .insert(schema.users)
+      .values(sampleData.users)
+      .returning()
+
+      
     const resProducts = await db
       .insert(schema.products)
       .values(sampleData.products)
       .returning()
-    console.log({ resProducts })
-    await client.end()
+      console.log({ resUsers, resProducts })
+      await client.end()
   } catch (error) {
-    console.error(error)
-    throw new Error('Failed to seed database')
+      console.error(error)
+      throw new Error('Failed to seed database')
   }
 }
 
