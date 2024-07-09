@@ -86,3 +86,9 @@ export const signUpFormSchema = z
   export const insertOrderItemSchema = createInsertSchema(orderItems, {
     price: z.number(),
   })
+
+
+  export const updateProfileSchema = z.object({
+    name: z.string().min(2, 'Name must be at least 2 Characters!'),
+    email: z.string().email().min(3, 'Email must be at least 3 Characters!'),
+  })
