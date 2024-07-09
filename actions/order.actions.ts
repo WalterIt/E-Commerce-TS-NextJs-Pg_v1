@@ -11,6 +11,19 @@ import { eq } from 'drizzle-orm'
 import { isRedirectError } from 'next/dist/client/components/redirect'
 import { formatError } from '@/lib/utils'
 
+
+
+export async function getOrderById(orderId: string) {
+  return await db.query.orders.findFirst({
+    where: eq(orders.id, orderId),
+    with: {
+      orderItems: true,
+      user: { columns: { name: true, email: true } },
+    },
+  })
+}
+
+
 // CREATE
 export const createOrder = async () => {
   try {
