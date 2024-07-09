@@ -6,10 +6,13 @@ import { getUserById } from './user.actions'
 import { redirect } from 'next/navigation'
 import { insertOrderSchema } from '@/lib/validator'
 import db from '@/db/drizzle'
-import { carts, orderItems, orders } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { carts, orderItems, orders, products } from '@/db/schema'
+import { eq, sql } from 'drizzle-orm'
 import { isRedirectError } from 'next/dist/client/components/redirect'
 import { formatError } from '@/lib/utils'
+import { paypal } from '@/lib/paypal'
+import { revalidatePath } from 'next/cache'
+import { PaymentResult } from '@/types'
 
 
 
@@ -84,4 +87,117 @@ export const createOrder = async () => {
     }
     return { success: false, message: formatError(error) }
   }
+}
+
+// UPDATE
+export async function createPayPalOrder(orderId: string) {
+  try {
+    const order = await db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+    })
+    if (order) {
+      const paypalOrder = await paypal.createOrder(Number(order.totalPrice))
+
+      await db
+        .update(orders)
+        .set({
+          paymentResult: {
+            id: paypalOrder.id,
+            email_address: '',
+            status: '',
+            pricePaid: '0',
+          },
+        })
+        .where(eq(orders.id, orderId))
+
+      return {
+        success: true,
+        message: 'PayPal Order Created Successfully!',
+        data: paypalOrder.id,
+      }
+    } else {
+      throw new Error('Order Not Found!')
+    }
+  } catch (err) {
+    return { success: false, message: formatError(err) }
+  }
+}
+
+export async function approvePayPalOrder(
+  orderId: string,
+  data: { orderID: string }
+) {
+  try {
+    const order = await db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+    })
+
+    if (!order) throw new Error('Order Not Found!')
+
+    const captureData = await paypal.capturePayment(data.orderID)
+    if (
+      !captureData ||
+      captureData.id !== order.paymentResult?.id ||
+      captureData.status !== 'COMPLETED'
+    )
+      throw new Error('Error in Paypal Payment!')
+
+    await updateOrderToPaid({
+      orderId,
+      paymentResult: {
+        id: captureData.id,
+        status: captureData.status,
+        email_address: captureData.payer.email_address,
+        pricePaid:
+          captureData.purchase_units[0]?.payments?.captures[0]?.amount?.value,
+      },
+    })
+
+    revalidatePath(`/order/${orderId}`)
+    
+    return {
+      success: true,
+      message: 'Your Order has been Successfully Paid by PayPal!',
+    }
+  } catch (err) {
+    return { success: false, message: formatError(err) }
+  }
+}
+
+export const updateOrderToPaid = async ({
+  orderId,
+  paymentResult,
+}: {
+  orderId: string
+  paymentResult?: PaymentResult
+}) => {
+  const order = await db.query.orders.findFirst({
+    columns: { isPaid: true },
+    where: eq(orders.id, orderId),
+    with: { orderItems: true },
+  })
+
+  if (!order) throw new Error('Order Not Found!')
+
+  if (order.isPaid) throw new Error('Order is Already Paid!')
+
+  await db.transaction(async (tx) => {
+    for (const item of order.orderItems) {
+      await tx
+        .update(products)
+        .set({
+          stock: sql`${products.stock} - ${item.qty}`,
+        })
+        .where(eq(products.id, item.productId))
+    }
+    
+    await tx
+      .update(orders)
+      .set({
+        isPaid: true,
+        paidAt: new Date(),
+        paymentResult,
+      })
+      .where(eq(orders.id, orderId))
+  })
 }
